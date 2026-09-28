@@ -26,6 +26,12 @@ class ImageProcessingApp:
 		self.image = None
 		self.second_image = None
 		self.brightness_value = tk.IntVar(master=root, value=0)
+		self.contrast_value = tk.IntVar(master=root, value=100)
+		self.saturation_value = tk.IntVar(master=root, value=100)
+		self.zoom_value = tk.DoubleVar(master=root, value=1.0)
+		self.rotation_value = tk.IntVar(master=root, value=0)
+		self.offset_x_value = tk.IntVar(master=root, value=0)
+		self.offset_y_value = tk.IntVar(master=root, value=0)
 		self.preview_labels = {}
 		self.preview_details = {}
 		self.preview_photos = {}
@@ -99,36 +105,17 @@ class ImageProcessingApp:
 			columns=4,
 		)
 
-		brightness_controls = tk.Frame(brightness_tab, bg="#f2f4f1", padx=14, pady=8)
-		brightness_controls.pack(fill="x")
-		tk.Label(
-			brightness_controls,
-			text="Cộng độ sáng vào mỗi pixel",
-			font=("Segoe UI", 9, "bold"),
-			background="#f2f4f1",
-			foreground="#375149",
-		).pack(side="left", padx=(0, 16))
-		tk.Label(
-			brightness_controls,
-			text="0",
-			font=("Segoe UI", 9),
-			background="#f2f4f1",
-			foreground="#375149",
-		).pack(side="left")
-		tk.Scale(
-			brightness_controls,
-			from_=0,
-			to=100,
-			variable=self.brightness_value,
-			command=self._on_brightness_change,
-		).pack(side="left", fill="x", expand=True, padx=8)
-		tk.Label(
-			brightness_controls,
-			text="100",
-			font=("Segoe UI", 9),
-			background="#f2f4f1",
-			foreground="#375149",
-		).pack(side="left")
+		adjustment_controls = tk.Frame(brightness_tab, bg="#f2f4f1", padx=14, pady=8)
+		adjustment_controls.pack(fill="x")
+		self._add_adjustment_slider(
+			adjustment_controls, "Sáng / tối", -100, 100, self.brightness_value, "-100 tối hơn · 0 gốc · +100 sáng hơn"
+		)
+		self._add_adjustment_slider(
+			adjustment_controls, "Tương phản", 0, 200, self.contrast_value, "0% thấp · 100% gốc · 200% cao"
+		)
+		self._add_adjustment_slider(
+			adjustment_controls, "Bão hòa màu", 0, 200, self.saturation_value, "0% không màu · 100% gốc · 200% cao"
+		)
 		self._create_gallery(
 			brightness_tab,
 			[
@@ -137,16 +124,21 @@ class ImageProcessingApp:
 			],
 			columns=2,
 		)
+		geometry_controls = tk.Frame(geometry_tab, bg="#f2f4f1", padx=12, pady=4)
+		geometry_controls.pack(fill="x")
+		self._add_geometry_slider(geometry_controls, "Tỷ lệ", 0.5, 1.5, self.zoom_value, 0.1)
+		self._add_geometry_slider(geometry_controls, "Xoay (độ)", 0, 360, self.rotation_value, 1)
+		self._add_geometry_slider(geometry_controls, "Dịch ngang X (px)", -50, 50, self.offset_x_value, 1)
+		self._add_geometry_slider(geometry_controls, "Dịch dọc Y (px)", -50, 50, self.offset_y_value, 1)
 		self._create_gallery(
 			geometry_tab,
 			[
 				("geometry_original", "ẢNH GỐC"),
-				("rotate90", "XOAY 90° THEO CHIỀU KIM ĐỒNG HỒ"),
-				("rotate180", "XOAY 180°"),
-				("translate", "DỊCH PHẢI 50 PX"),
-				("zoom", "PHÓNG TO 1.5×"),
+				("rotate", "XOAY THEO GÓC ĐÃ CHỌN"),
+				("translate", "DỊCH THEO X / Y ĐÃ CHỌN"),
+				("zoom", "THU PHÓNG THEO TỶ LỆ ĐÃ CHỌN"),
 			],
-			columns=3,
+			columns=2,
 		)
 
 		self.status_text = tk.StringVar(value="Chọn ảnh để bắt đầu.")
@@ -161,6 +153,76 @@ class ImageProcessingApp:
 			pady=10,
 		)
 		status.pack(fill="x", side="bottom")
+
+	def _add_adjustment_slider(self, parent, label, start, end, variable, scale_hint):
+		control = tk.Frame(parent, bg="#f2f4f1")
+		control.pack(fill="x", pady=3)
+		tk.Label(
+			control,
+			text=label,
+			font=("Segoe UI", 9, "bold"),
+			background="#f2f4f1",
+			foreground="#375149",
+			width=16,
+			anchor="w",
+		).pack(side="left")
+		tk.Scale(
+			control,
+			from_=start,
+			to=end,
+			resolution=1,
+			orient="horizontal",
+			variable=variable,
+			command=lambda value, adjustment=label: self._on_adjustment_change(adjustment, value),
+			showvalue=True,
+			bg="#f2f4f1",
+			fg="#183e36",
+			troughcolor="#dce4dd",
+			highlightthickness=0,
+			bd=0,
+		).pack(side="left", fill="x", expand=True, padx=8)
+		tk.Label(
+			control,
+			text=scale_hint,
+			font=("Segoe UI", 8),
+			background="#f2f4f1",
+			foreground="#75847c",
+			width=36,
+			anchor="w",
+		).pack(side="right")
+
+	def _add_geometry_slider(self, parent, label, start, end, variable, resolution):
+		control = tk.Frame(parent, bg="#f2f4f1")
+		control.pack(side="left", fill="x", expand=True, padx=5)
+		tk.Label(
+			control,
+			text=label,
+			font=("Segoe UI", 9, "bold"),
+			background="#f2f4f1",
+			foreground="#375149",
+		).pack(anchor="w")
+		tk.Scale(
+			control,
+			from_=start,
+			to=end,
+			resolution=resolution,
+			orient="horizontal",
+			variable=variable,
+			command=self._on_geometry_change,
+			showvalue=True,
+			bg="#f2f4f1",
+			fg="#183e36",
+			troughcolor="#dce4dd",
+			highlightthickness=0,
+			bd=0,
+		).pack(fill="x")
+		tk.Label(
+			control,
+			text=f"{start} đến {end} · bước {resolution}",
+			font=("Segoe UI", 8),
+			background="#f2f4f1",
+			foreground="#75847c",
+		).pack(anchor="w")
 
 	def _create_gallery(self, parent, cards, columns):
 		gallery = tk.Frame(parent, bg="#f2f4f1", padx=4, pady=2)
@@ -238,6 +300,7 @@ class ImageProcessingApp:
 			self._show_array("opencv", cv2.cvtColor(image, cv2.COLOR_BGR2RGB), "Đọc màu BGR bằng OpenCV")
 			self._show_array("brightness_original", cv2.cvtColor(image, cv2.COLOR_BGR2RGB), self._dimensions(image))
 			self._show_array("geometry_original", cv2.cvtColor(image, cv2.COLOR_BGR2RGB), self._dimensions(image))
+			self._update_geometry()
 			if Image is not None and ImageTk is not None:
 				try:
 					with Image.open(path) as pil_image:
@@ -248,7 +311,7 @@ class ImageProcessingApp:
 			else:
 				self._set_placeholder("pillow", "Cài Pillow để xem ảnh đọc bằng PIL.")
 			self.preview_details["opencv"].configure(text=self._dimensions(image))
-			self._update_brightness()
+			self._update_adjustments()
 		else:
 			self.second_path = Path(path)
 			self.second_image = image
@@ -264,19 +327,28 @@ class ImageProcessingApp:
 	def choose_second(self):
 		self._choose_image(2)
 
-	def _on_brightness_change(self, value):
-		self._update_brightness(round(float(value)))
+	def _on_adjustment_change(self, label, value):
+		self._update_adjustments()
+		if self.image is not None:
+			unit = "" if label == "Sáng / tối" else "%"
+			self.status_text.set(f"{label}: {float(value):g}{unit}")
 
-	def _update_brightness(self, delta=None):
+	def _update_adjustments(self):
 		if self.image is None:
 			return
-		if delta is None:
-			delta = self.brightness_value.get()
-		bright = cv2.addWeighted(self.image, 1.0, self.image, 0.0, delta)
+		brightness = self.brightness_value.get()
+		contrast = self.contrast_value.get() / 100
+		saturation = self.saturation_value.get() / 100
+		adjusted = (self.image.astype(np.float32) - 127.5) * contrast + 127.5 + brightness
+		adjusted = np.clip(adjusted, 0, 255).astype(np.uint8)
+		if saturation != 1.0:
+			hsv = cv2.cvtColor(adjusted, cv2.COLOR_BGR2HSV)
+			hsv[:, :, 1] = np.clip(hsv[:, :, 1].astype(np.float32) * saturation, 0, 255).astype(np.uint8)
+			adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 		self._show_array(
 			"bright",
-			cv2.cvtColor(bright, cv2.COLOR_BGR2RGB),
-			f"Cộng {delta} vào mỗi kênh · giới hạn tối đa 255",
+			cv2.cvtColor(adjusted, cv2.COLOR_BGR2RGB),
+			f"Sáng/tối {brightness:+d} · tương phản {self.contrast_value.get()}% · bão hòa {self.saturation_value.get()}%",
 		)
 
 	def _clear_processed_previews(self):
@@ -287,8 +359,7 @@ class ImageProcessingApp:
 			"value",
 			"and",
 			"bright",
-			"rotate90",
-			"rotate180",
+			"rotate",
 			"translate",
 			"zoom",
 		):
@@ -300,6 +371,12 @@ class ImageProcessingApp:
 		self.image = None
 		self.second_image = None
 		self.brightness_value.set(0)
+		self.contrast_value.set(100)
+		self.saturation_value.set(100)
+		self.zoom_value.set(1.0)
+		self.rotation_value.set(0)
+		self.offset_x_value.set(0)
+		self.offset_y_value.set(0)
 		self._update_file_names()
 		for key in self.preview_labels:
 			self._set_placeholder(key, "Chưa có ảnh")
@@ -319,34 +396,8 @@ class ImageProcessingApp:
 		self._show_array("hue", hue_display, "H: 0–179 · tô màu giả để dễ quan sát")
 		self._show_array("saturation", saturation, "S: 0–255 · grayscale")
 		self._show_array("value", value, "V: 0–255 · grayscale")
-		self._update_brightness()
-
-		rotated_90 = cv2.rotate(self.image, cv2.ROTATE_90_CLOCKWISE)
-		rotated_180 = cv2.rotate(self.image, cv2.ROTATE_180)
-		height, width = self.image.shape[:2]
-		translation_matrix = np.float32([[1, 0, 50], [0, 1, 0]])
-		translated = cv2.warpAffine(self.image, translation_matrix, (width, height))
-		zoomed = cv2.resize(self.image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_LINEAR)
-		self._show_array(
-			"rotate90",
-			cv2.cvtColor(rotated_90, cv2.COLOR_BGR2RGB),
-			f"Theo chiều kim đồng hồ · {self._dimensions(rotated_90)}",
-		)
-		self._show_array(
-			"rotate180",
-			cv2.cvtColor(rotated_180, cv2.COLOR_BGR2RGB),
-			self._dimensions(rotated_180),
-		)
-		self._show_array(
-			"translate",
-			cv2.cvtColor(translated, cv2.COLOR_BGR2RGB),
-			"Dịch phải 50 px · phần trống được tô đen",
-		)
-		self._show_array(
-			"zoom",
-			cv2.cvtColor(zoomed, cv2.COLOR_BGR2RGB),
-			f"Tỷ lệ 1.5× · {self._dimensions(zoomed)}",
-		)
+		self._update_adjustments()
+		self._update_geometry()
 
 		if self.second_image is None:
 			self._set_placeholder("and", "Chọn ảnh 2 để tạo kết quả AND.")
@@ -363,6 +414,50 @@ class ImageProcessingApp:
 			detail += " · ảnh 2 đã co giãn để khớp kích thước"
 		self._show_array("and", cv2.cvtColor(result, cv2.COLOR_BGR2RGB), detail)
 		self.status_text.set("Phân tích hoàn tất: màu, độ sáng, hình học và Bitwise AND.")
+
+	def _on_geometry_change(self, value):
+		self._update_geometry()
+		if self.image is not None:
+			self.status_text.set(f"Đã cập nhật biến đổi: {float(value):g}.")
+
+	def _update_geometry(self):
+		if self.image is None:
+			return
+
+		height, width = self.image.shape[:2]
+		angle = self.rotation_value.get()
+		center = (width / 2, height / 2)
+		rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+		cosine = abs(rotation_matrix[0, 0])
+		sine = abs(rotation_matrix[0, 1])
+		rotated_width = int(np.ceil((height * sine) + (width * cosine) - 1e-10))
+		rotated_height = int(np.ceil((height * cosine) + (width * sine) - 1e-10))
+		rotation_matrix[0, 2] += (rotated_width / 2) - center[0]
+		rotation_matrix[1, 2] += (rotated_height / 2) - center[1]
+		rotated = cv2.warpAffine(self.image, rotation_matrix, (rotated_width, rotated_height))
+		self._show_array(
+			"rotate",
+			cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB),
+			f"Góc {angle}° · {self._dimensions(rotated)}",
+		)
+
+		offset_x = self.offset_x_value.get()
+		offset_y = self.offset_y_value.get()
+		translation_matrix = np.float32([[1, 0, offset_x], [0, 1, offset_y]])
+		translated = cv2.warpAffine(self.image, translation_matrix, (width, height))
+		self._show_array(
+			"translate",
+			cv2.cvtColor(translated, cv2.COLOR_BGR2RGB),
+			f"X: {offset_x} px · Y: {offset_y} px · {self._dimensions(translated)}",
+		)
+
+		zoom = self.zoom_value.get()
+		zoomed = cv2.resize(self.image, None, fx=zoom, fy=zoom, interpolation=cv2.INTER_LINEAR)
+		self._show_array(
+			"zoom",
+			cv2.cvtColor(zoomed, cv2.COLOR_BGR2RGB),
+			f"Tỷ lệ {zoom:.1f}× · {self._dimensions(zoomed)}",
+		)
 
 	def save_formats(self):
 		if self.image is None or self.image_path is None:
